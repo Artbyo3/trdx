@@ -1,0 +1,11 @@
+{
+    "name": "trdx_tracker",
+    "directory": ".",
+    "resourcedir": "resources",
+    "bindir": "bin",
+    "resourceonly": false,
+    "hmd_presence": false,
+    "always_activate": true,
+    "exclusive_mode": false,
+    "automatic_activation": true
+} 

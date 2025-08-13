@@ -1,0 +1,11 @@
+{
+    "driver_trdx_tracker": {
+        "TrackedDeviceClass_GenericTracker": {
+            "renderModel": "{htc}vr_tracker_vive_1_0",
+            "icons": {
+                "32": "icons/tracker_32.png",
+                "64": "icons/tracker_64.png"
+            }
+        }
+    }
+} 

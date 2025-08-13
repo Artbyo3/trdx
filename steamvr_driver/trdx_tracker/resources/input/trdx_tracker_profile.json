@@ -1,0 +1,19 @@
+{
+  "jsonid": "input_profile",
+  "controller_type": "vive_tracker",
+  "input_source": {
+    "/input/pose/raw": {
+      "type": "pose"
+    }
+  },
+  "options": {
+    "simulated_controller_type": "vive_tracker",
+    "simulate_rendermodel": true
+  },
+  "default_bindings": [
+    {
+      "controller_type": "vive_tracker",
+      "binding_url": "trdx_tracker_bindings.json"
+    }
+  ]
+} 

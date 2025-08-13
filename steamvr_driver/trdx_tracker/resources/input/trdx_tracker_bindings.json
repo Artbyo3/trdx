@@ -1,0 +1,9 @@
+{
+  "name": "TRDX Tracker Bindings",
+  "controller_type": "vive_tracker",
+  "bindings": {
+    "/input/pose/raw": {
+      "output": "/input/pose/raw"
+    }
+  }
+} 

@@ -9,3 +9,4 @@ later on
 ## 🚀 Quick Start
 install driver to steamVR.
 Run the program.
+Run using python 3.12 or just use a venv on python 3.12

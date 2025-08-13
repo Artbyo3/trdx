@@ -2,6 +2,7 @@
 .venv
 # SteamVR Driver - ignore everything except install folder
 steamvr_driver/*
+!steamvr_driver/
 !steamvr_driver/install/
 !steamvr_driver/install/**
 

@@ -227,33 +227,5 @@ class CameraManager:
         """Get current camera frame"""
 ```
 
-## Contributing
 
-### Code Style
-- Follow PEP 8 Python style guidelines
-- Use type hints for function parameters and return values
-- Document all public methods and classes
-- Include error handling for all external operations
 
-### Testing
-- Test with multiple camera types
-- Verify SteamVR integration
-- Performance testing with different configurations
-- Cross-platform compatibility testing
-
-### Pull Request Process
-1. Fork the repository
-2. Create feature branch
-3. Implement changes with tests
-4. Submit pull request with description
-5. Code review and approval process
-
-## License
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## Support
-For technical support and questions:
-- Check the troubleshooting section above
-- Review configuration examples
-- Enable debug mode for detailed logging
-- Check SteamVR driver installation

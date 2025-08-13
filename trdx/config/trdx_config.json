@@ -1,0 +1,158 @@
+{
+  "app": {
+    "version": "1.0.0",
+    "auto_start_cameras": false,
+    "auto_connect_steamvr": true,
+    "minimize_to_tray": false,
+    "language": "en"
+  },
+  "cameras": {
+    "max_cameras": 4,
+    "default_resolution": [
+      320,
+      240
+    ],
+    "default_fps": 10,
+    "auto_detect": true,
+    "camera_configs": {
+      "0": {
+        "enabled": true,
+        "source": 0,
+        "name": "Camera 0",
+        "mirror": false
+      },
+      "1": {
+        "enabled": false,
+        "source": 1,
+        "name": "Camera 1",
+        "mirror": false
+      },
+      "2": {
+        "enabled": false,
+        "source": 2,
+        "name": "Camera 2",
+        "mirror": false
+      },
+      "3": {
+        "enabled": false,
+        "source": 3,
+        "name": "Camera 3",
+        "mirror": false
+      }
+    },
+    "camera_0": {
+      "mirror": true
+    }
+  },
+  "pose_processing": {
+    "model_complexity": 0,
+    "min_detection_confidence": 0.3,
+    "min_tracking_confidence": 0.3,
+    "smoothing_factor": 0.5,
+    "confidence_threshold": 0.6,
+    "fusion_mode": "weighted_average",
+    "enable_hands": false,
+    "enable_face": false,
+    "manual_body_offset": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "steamvr": {
+    "auto_install_driver": true,
+    "auto_add_trackers": true,
+    "smoothing": 0.3,
+    "additional_smoothing": 0.5,
+    "latency_compensation": 0.0,
+    "tracker_roles": {
+      "0": "TrackerRole_Waist",
+      "1": "TrackerRole_LeftFoot",
+      "2": "TrackerRole_RightFoot",
+      "0": "TrackerRole_Waist",
+      "1": "TrackerRole_LeftFoot",
+      "2": "TrackerRole_RightFoot"
+    },
+    "headset_reference": {
+      "enable_headset_tracking": true,
+      "update_frequency": 90,
+      "pose_smoothing_factor": 0.8,
+      "confidence_threshold": 0.8,
+      "use_headset_for_alignment": true,
+      "auto_calibrate_user_height": true,
+      "enhanced_alignment": {
+        "stability_factor": 0.8,
+        "precision_factor": 0.2,
+        "height_adaptation_speed": 0.01,
+        "outlier_rejection_threshold": 0.6,
+        "min_calibration_samples": 180,
+        "enable_body_anchoring": true,
+        "max_headset_distance": 1.5
+      }
+    },
+    "vr_integration": {
+      "enable_headset_reference": true,
+      "use_controller_height_reference": true,
+      "auto_detect_floor_from_controllers": true,
+      "stabilization_factor": 0.9,
+      "vr_data_port": 6970
+    }
+  },
+  "calibration": {
+    "auto_calibrate": true,
+    "calibration_time": 5.0,
+    "scale": 1.0,
+    "rotation": [
+      180.0,
+      0.0,
+      0.0
+    ],
+    "translation": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "tracking_space_height": 1.8,
+    "coordinate_fixes": {
+      "flip_y_axis": false,
+      "flip_z_axis": false,
+      "rotation_correction": [
+        180.0,
+        0.0,
+        0.0
+      ],
+      "apply_coordinate_transform": true
+    },
+    "anatomical_constraints": {
+      "enable_hip_constraints": true,
+      "hip_min_height": 0.8,
+      "hip_max_height": 1.2,
+      "enable_foot_constraints": true,
+      "foot_min_height": 0.0,
+      "foot_max_height": 0.3,
+      "max_velocity": 5.0
+    }
+  },
+  "ui": {
+    "theme": "dark",
+    "window_geometry": {
+      "geometry": "01d9d0cb00030000000001400000008c0000063f000003ca00000140000000ab0000063f000003ca0000000000000000078000000140000000ab0000063f000003ca",
+      "state": "000000ff00000000fd0000000000000500000002c200000004000000040000000800000008fc00000001000000020000000100000018006d00610069006e005f0074006f006f006c0062006100720100000000ffffffff0000000000000000"
+    },
+    "window_state": null,
+    "show_debug_info": false,
+    "show_skeleton": false,
+    "camera_preview_size": [
+      320,
+      240
+    ],
+    "auto_hide_console": true
+  },
+  "performance": {
+    "max_fps": 60,
+    "use_gpu_acceleration": true,
+    "multi_threading": true,
+    "memory_limit_mb": 1024,
+    "log_level": "INFO"
+  }
+}

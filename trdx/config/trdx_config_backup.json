@@ -1,0 +1,91 @@
+{
+  "app": {
+    "version": "1.0.0",
+    "auto_start_cameras": false,
+    "auto_connect_steamvr": true,
+    "minimize_to_tray": false,
+    "language": "en"
+  },
+  "cameras": {
+    "max_cameras": 4,
+    "default_resolution": [640, 480],
+    "default_fps": 30,
+    "auto_detect": true,
+    "camera_configs": {
+      "0": {
+        "enabled": true,
+        "source": 0,
+        "name": "Camera 0"
+      }
+    }
+  },
+  "pose_processing": {
+    "model_complexity": 1,
+    "min_detection_confidence": 0.5,
+    "min_tracking_confidence": 0.5,
+    "smoothing_factor": 0.7,
+    "confidence_threshold": 0.5,
+    "fusion_mode": "weighted_average",
+    "enable_hands": false,
+    "enable_face": false
+  },
+  "steamvr": {
+    "auto_install_driver": true,
+    "auto_add_trackers": true,
+    "smoothing": 0.5,
+    "additional_smoothing": 0.7,
+    "latency_compensation": 0.0,
+    "tracker_roles": {
+      "0": "TrackerRole_Waist",
+      "1": "TrackerRole_LeftFoot",
+      "2": "TrackerRole_RightFoot"
+    },
+    "headset_reference": {
+      "enable_headset_tracking": true,
+      "update_frequency": 90,
+      "pose_smoothing_factor": 0.7,
+      "confidence_threshold": 0.8,
+      "use_headset_for_alignment": true,
+      "auto_calibrate_user_height": true,
+      "enhanced_alignment": {
+        "stability_factor": 0.65,
+        "precision_factor": 0.35,
+        "height_adaptation_speed": 0.02,
+        "outlier_rejection_threshold": 0.8,
+        "min_calibration_samples": 120
+      }
+    },
+    "vr_integration": {
+      "enable_headset_reference": true,
+      "use_controller_height_reference": true,
+      "auto_detect_floor_from_controllers": true,
+      "stabilization_factor": 0.8,
+      "vr_data_port": 6970
+    }
+  },
+  "calibration": {
+    "auto_calibrate": true,
+    "calibration_time": 3.0,
+    "scale": 1.0,
+    "rotation": [180.0, 0.0, 0.0],
+    "translation": [0.0, 0.0, 0.0],
+    "tracking_space_height": 1.8,
+    "coordinate_fixes": {
+      "flip_y_axis": false,
+      "flip_z_axis": false,
+      "rotation_correction": [180.0, 0.0, 0.0],
+      "apply_coordinate_transform": true
+    }
+  },
+  "ui": {
+    "theme": "dark",
+    "window_geometry": {
+      "x": 100,
+      "y": 100,
+      "width": 1200,
+      "height": 800
+    },
+    "show_debug_info": false,
+    "auto_hide_console": true
+  }
+}

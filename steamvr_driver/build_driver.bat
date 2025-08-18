@@ -11,8 +11,7 @@ if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\B
     set "VS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
 ) else (
     echo ERROR: Visual Studio not found
-    echo Installing Visual Studio Build Tools...
-    pause
+    echo Installing Visual Studio Build Tools... (skipping interactive pause)
     exit /b 1
 )
 
@@ -29,7 +28,6 @@ cmake -S src -B build -G "Visual Studio 17 2022" -A x64
 
 if %ERRORLEVEL% neq 0 (
     echo ERROR: CMake configuration failed
-    pause
     exit /b 1
 )
 
@@ -38,26 +36,27 @@ cmake --build build --config Release
 
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Compilation failed
-    pause
     exit /b 1
 )
 
-REM Create installation directory
-if exist "install\trdx_tracker" rmdir /s /q "install\trdx_tracker"
-mkdir "install\trdx_tracker\bin\win64"
+REM Create installation directory (preserve if exists, just ensure structure)
+if not exist "install\trdx_tracker\bin\win64" mkdir "install\trdx_tracker\bin\win64"
 
-REM Find the compiled driver
+REM Find the compiled driver and place it at install\trdx_tracker\bin\win64
 if exist "build\Release\driver_trdx_tracker.dll" (
     copy "build\Release\driver_trdx_tracker.dll" "install\trdx_tracker\bin\win64\" >nul
     echo ✓ Driver copied from build\Release\
 ) else if exist "build\x64\Release\driver_trdx_tracker.dll" (
     copy "build\x64\Release\driver_trdx_tracker.dll" "install\trdx_tracker\bin\win64\" >nul
     echo ✓ Driver copied from build\x64\Release\
+) else if exist "install\trdx_tracker\bin\win64\Release\driver_trdx_tracker.dll" (
+    copy "install\trdx_tracker\bin\win64\Release\driver_trdx_tracker.dll" "install\trdx_tracker\bin\win64\" >nul
+    echo ✓ Driver copied from install\...\Release\
 ) else (
     echo ✗ ERROR: Compiled driver not found
     echo Searching for compiled files...
     dir /s build\*.dll
-    pause
+    dir /s install\trdx_tracker\bin\win64\*.dll
     exit /b 1
 )
 
@@ -87,4 +86,3 @@ echo.
 echo Driver files:
 dir install\trdx_tracker\bin\win64\
 echo.
-pause 

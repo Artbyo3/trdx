@@ -83,10 +83,10 @@ class SteamVRDriver(QObject):
         self.steamvr_path = self._find_steamvr_path()
         
     def _get_driver_path(self) -> Path:
-        """Get the path where our driver should be installed"""
-        # Create driver in project directory
+        """Return the path to the compiled TRDX SteamVR driver in this repo."""
         project_root = Path(__file__).parent.parent.parent
-        driver_path = project_root / "steamvr_driver" / "trdx_driver"
+        # Use the compiled/install output, which contains the real DLL and resources
+        driver_path = project_root / "steamvr_driver" / "install" / "trdx_tracker"
         return driver_path
     
     def _find_steamvr_path(self) -> Optional[Path]:
@@ -117,54 +117,56 @@ class SteamVRDriver(QObject):
         return None
     
     def install_driver(self) -> bool:
-        """Install the TRDX driver to SteamVR"""
+        """Install the compiled TRDX SteamVR driver to SteamVR/drivers.
+
+        Does not modify any Steam settings; it only copies the driver folder.
+        """
         try:
-            # Create driver files
-            if not self._create_driver_files():
-                return False
-            
+            # Verify compiled driver exists
+            dll_path = self.driver_path / "bin" / "win64" / "driver_trdx_tracker.dll"
+            manifest_path = self.driver_path / "driver.vrdrivermanifest"
+            resources_path = self.driver_path / "resources"
+
+            if not dll_path.exists() or not manifest_path.exists() or not resources_path.exists():
+                self.logger.warning("Compiled driver or resources not found, attempting to build...")
+                if not self._try_build_native_driver():
+                    self.logger.error("Native driver build failed or not available")
+                    return False
+
             # Install to SteamVR
             if not self._install_to_steamvr():
                 return False
-            
+
             self.logger.info("TRDX driver installed successfully")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to install driver: {e}")
             self.error_occurred.emit(f"Driver installation failed: {e}")
             return False
     
-    def _create_driver_files(self) -> bool:
-        """Create the driver files structure"""
+    def _try_build_native_driver(self) -> bool:
+        """Try to build the native C++ driver using the provided build script."""
         try:
-            # Create driver directory structure
-            driver_root = self.driver_path
-            driver_root.mkdir(parents=True, exist_ok=True)
-            
-            # Create subdirectories
-            (driver_root / "bin" / "win64").mkdir(parents=True, exist_ok=True)
-            (driver_root / "resources").mkdir(parents=True, exist_ok=True)
-            
-            # Create driver manifest
-            manifest = {
-                "name": "trdx_driver",
-                "directory": str(driver_root),
-                "resourcedir": "resources",
-                "bindir": "bin"
-            }
-            
-            with open(driver_root / "driver.vrdrivermanifest", 'w') as f:
-                json.dump(manifest, f, indent=2)
-            
-            # Create driver DLL (stub for now - needs C++ implementation)
-            self._create_driver_stub()
-            
-            self.logger.info(f"Driver files created at: {driver_root}")
-            return True
-            
+            project_root = Path(__file__).parent.parent.parent
+            build_script = project_root / "steamvr_driver" / "build_driver.bat"
+            if not build_script.exists():
+                self.logger.error(f"Build script not found: {build_script}")
+                return False
+
+            # Run the build script without opening a window
+            self.logger.info("Building native TRDX driver (this may take a moment)...")
+            subprocess.run([str(build_script)], cwd=str(build_script.parent), check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+            dll_path = self.driver_path / "bin" / "win64" / "driver_trdx_tracker.dll"
+            if dll_path.exists():
+                self.logger.info("Native driver built successfully")
+                return True
+            else:
+                self.logger.error("Native driver DLL not found after build")
+                return False
         except Exception as e:
-            self.logger.error(f"Failed to create driver files: {e}")
+            self.logger.error(f"Driver build failed: {e}")
             return False
     
     def _create_driver_stub(self):
@@ -185,25 +187,25 @@ class SteamVRDriver(QObject):
             f.write(stub_content)
     
     def _install_to_steamvr(self) -> bool:
-        """Install driver to SteamVR drivers directory"""
+        """Install driver to SteamVR drivers directory."""
         if not self.steamvr_path:
             self.logger.error("SteamVR path not found")
             return False
-        
+
         try:
             steamvr_drivers = self.steamvr_path / "drivers"
-            target_path = steamvr_drivers / "trdx"
-            
+            target_path = steamvr_drivers / "trdx_tracker"
+
             # Copy driver files
             import shutil
             if target_path.exists():
                 shutil.rmtree(target_path)
-            
+
             shutil.copytree(self.driver_path, target_path)
-            
+
             self.logger.info(f"Driver installed to: {target_path}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to install to SteamVR: {e}")
             return False
@@ -212,7 +214,7 @@ class SteamVRDriver(QObject):
         """Connect to SteamVR via UDP"""
         self.logger.warning("[TRDX] Attempting to connect to SteamVR via UDP...")
         
-        # First check if SteamVR is running
+        # Require SteamVR to be already running; do not auto-start or auto-install
         if not self.is_steamvr_running():
             self.logger.error("[TRDX] SteamVR is not running! Please start SteamVR first.")
             self.error_occurred.emit("SteamVR is not running - please start SteamVR first")
@@ -248,7 +250,6 @@ class SteamVRDriver(QObject):
                     self.is_connected = True
                     self.status_changed.emit("Connected to SteamVR Driver (no response)", True)
                     self._start_communication_thread()
-                    self.logger.warning("[TRDX] Connected to SteamVR via UDP (no driver response)")
                     return True
                     
             except Exception as e:

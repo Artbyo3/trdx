@@ -43,3 +43,27 @@ add_custom_command(TARGET driver_trdx_tracker POST_BUILD
     "${CMAKE_CURRENT_SOURCE_DIR}/../install/trdx_tracker/bin/win64/"
     COMMENT "Copying OpenVR API DLL"
 ) 
+
+# Copy driver manifest
+add_custom_command(TARGET driver_trdx_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/../trdx_tracker/driver.vrdrivermanifest"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../install/trdx_tracker/"
+    COMMENT "Copying driver manifest"
+)
+
+# Copy driver resources (strings, input profile)
+add_custom_command(TARGET driver_trdx_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/../trdx_tracker/resources"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../install/trdx_tracker/resources"
+    COMMENT "Copying driver resources"
+)
+
+# Flatten configuration subdir: copy the built DLL to bin/win64 root expected by manifest
+add_custom_command(TARGET driver_trdx_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:driver_trdx_tracker>"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../install/trdx_tracker/bin/win64/driver_trdx_tracker.dll"
+    COMMENT "Copying driver DLL to bin/win64"
+)

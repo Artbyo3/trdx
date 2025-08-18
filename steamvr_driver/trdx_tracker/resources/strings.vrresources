@@ -1,0 +1,14 @@
+{
+  "strings": {
+    "en_us": {
+      "systemname": "TRDX Tracker",
+      "driver_name": "TRDX Tracker Driver"
+    },
+    "es_es": {
+      "systemname": "TRDX Tracker",
+      "driver_name": "Controlador TRDX Tracker"
+    }
+  }
+}
+
+

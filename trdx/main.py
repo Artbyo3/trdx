@@ -208,6 +208,9 @@ def main():
             # Inicializar en el thread principal
             if app_instance.initialize_in_main_thread():
                 splash.update_progress(100, "Ready!")
+
+
+                
                 print("✅ Aplicación inicializada correctamente")
                 
                 # Debug: Verificar que la ventana se creó

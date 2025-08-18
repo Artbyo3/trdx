@@ -1,7 +1,7 @@
 .venv/
 .venv
 # SteamVR Driver - ignore everything except install folder
-
+__pycache__/
 
 
 # Unity generated files

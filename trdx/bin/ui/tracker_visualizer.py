@@ -101,7 +101,7 @@ class TrackerVisualizerWidget(QWidget):
         layout = QHBoxLayout(panel)
         
         # View controls
-        view_group = QGroupBox("🎮 View Controls")
+        view_group = QGroupBox("View Controls")
         view_layout = QHBoxLayout(view_group)
         
         # Grid toggle

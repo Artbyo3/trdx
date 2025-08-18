@@ -5,6 +5,8 @@
 #include <chrono>
 #include <iostream>
 #include <cmath>
+#include <cstring>
+#include <cstdio>
 
 using namespace vr;
 
@@ -189,6 +191,9 @@ namespace trdx_driver
         VRProperties()->SetStringProperty(m_propertyContainer, Prop_RenderModelName_String, "{htc}vr_tracker_vive_1_0");
         VRProperties()->SetStringProperty(m_propertyContainer, Prop_SerialNumber_String, m_serialNumber.c_str());
         VRProperties()->SetStringProperty(m_propertyContainer, Prop_ManufacturerName_String, "TRDX Project");
+        // Important identification properties so SteamVR recognizes the device as a tracker
+        VRProperties()->SetStringProperty(m_propertyContainer, Prop_TrackingSystemName_String, "trdx");
+        VRProperties()->SetStringProperty(m_propertyContainer, Prop_RegisteredDeviceType_String, "vive_tracker");
         
         VRProperties()->SetBoolProperty(m_propertyContainer, Prop_WillDriftInYaw_Bool, false);
         VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceIsWireless_Bool, true);
@@ -220,7 +225,7 @@ namespace trdx_driver
                 break;
         }
 
-        // Set input profile
+        // Set input profile (token must match manifest "name" and resources top-level key)
         VRProperties()->SetStringProperty(m_propertyContainer, Prop_InputProfilePath_String, "{trdx_tracker}/input/trdx_tracker_profile.json");
 
         m_isActive = true;
@@ -288,6 +293,15 @@ namespace trdx_driver
             m_driverPose.poseIsValid = false;
             m_driverPose.result = TrackingResult_Running_OutOfRange;
             m_driverPose.deviceIsConnected = true;
+            // Identity transforms
+            m_driverPose.qWorldFromDriverRotation = {1.0, 0.0, 0.0, 0.0};
+            m_driverPose.qDriverFromHeadRotation = {1.0, 0.0, 0.0, 0.0};
+            m_driverPose.vecWorldFromDriverTranslation[0] = 0.0;
+            m_driverPose.vecWorldFromDriverTranslation[1] = 0.0;
+            m_driverPose.vecWorldFromDriverTranslation[2] = 0.0;
+            m_driverPose.vecDriverFromHeadTranslation[0] = 0.0;
+            m_driverPose.vecDriverFromHeadTranslation[1] = 0.0;
+            m_driverPose.vecDriverFromHeadTranslation[2] = 0.0;
             return;
         }
 
@@ -312,11 +326,20 @@ namespace trdx_driver
             w /= norm; x /= norm; y /= norm; z /= norm;
         }
 
-        // Convert to rotation matrix
         m_driverPose.qRotation.w = w;
         m_driverPose.qRotation.x = x;
         m_driverPose.qRotation.y = y;
         m_driverPose.qRotation.z = z;
+
+        // Identity transforms for world/driver and driver/head spaces
+        m_driverPose.qWorldFromDriverRotation = {1.0, 0.0, 0.0, 0.0};
+        m_driverPose.qDriverFromHeadRotation = {1.0, 0.0, 0.0, 0.0};
+        m_driverPose.vecWorldFromDriverTranslation[0] = 0.0;
+        m_driverPose.vecWorldFromDriverTranslation[1] = 0.0;
+        m_driverPose.vecWorldFromDriverTranslation[2] = 0.0;
+        m_driverPose.vecDriverFromHeadTranslation[0] = 0.0;
+        m_driverPose.vecDriverFromHeadTranslation[1] = 0.0;
+        m_driverPose.vecDriverFromHeadTranslation[2] = 0.0;
 
         // Calculate velocity for better tracking
         CalculateVelocity();

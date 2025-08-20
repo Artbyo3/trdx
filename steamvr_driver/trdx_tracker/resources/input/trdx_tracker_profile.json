@@ -2,7 +2,7 @@
   "jsonid": "input_profile",
   "controller_type": "vive_tracker",
   "legacy_binding": null,
-  "input_bindingui_mode": "controller_hmd",
+  "input_bindingui_mode": "single_device",
   "input_bindingui_left": "{htc}/icons/tracker.svg",
   "input_bindingui_right": "{htc}/icons/tracker.svg",
   "interaction_profile": "/interaction_profiles/htc/vive_tracker",

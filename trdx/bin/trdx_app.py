@@ -65,6 +65,21 @@ class TRDXApplication:
         self.pose_processor = None
         self.steamvr_driver = None
         self.config_manager = None
+        self.pose_thread = None
+
+    def _start_pose_thread(self):
+        """Start a dedicated thread for the PoseProcessor to avoid blocking UI."""
+        try:
+            if self.pose_processor is None:
+                return
+            if self.pose_thread is None:
+                self.pose_thread = QThread()
+                self.pose_thread.setObjectName("PoseProcessorThread")
+                self.pose_processor.moveToThread(self.pose_thread)
+                self.pose_thread.start()
+                self.logger.info("PoseProcessor moved to background thread")
+        except Exception as e:
+            self.logger.warning(f"Could not start PoseProcessor thread: {e}")
         
     def initialize(self):
         """Initialize all application components"""
@@ -82,6 +97,8 @@ class TRDXApplication:
             self.camera_manager = CameraManager(max_cameras=4)
             self.pose_processor = PoseProcessor(self.config_manager)
             self.steamvr_driver = SteamVRDriver()
+            
+            # NOTE: Keep PoseProcessor in main thread for stability
             
             # Connect to SteamVR automatically
             if self.steamvr_driver.connect_to_steamvr():
@@ -163,6 +180,8 @@ class TRDXApplication:
             self.pose_processor = PoseProcessor(self.config_manager)
             self.steamvr_driver = SteamVRDriver()
             
+            # NOTE: Keep PoseProcessor in main thread for stability
+            
             # Connect to SteamVR automatically (without threading)
             if self.steamvr_driver.connect_to_steamvr():
                 self.logger.info("✓ Connected to SteamVR driver successfully")
@@ -243,6 +262,8 @@ class TRDXApplication:
             self.pose_processor = PoseProcessor(self.config_manager)
             self.steamvr_driver = SteamVRDriver()
             
+            # NOTE: Keep PoseProcessor in main thread for stability
+            
             # Connect to SteamVR automatically (without threading)
             if self.steamvr_driver.connect_to_steamvr():
                 self.logger.info("✓ Connected to SteamVR driver successfully")
@@ -322,6 +343,8 @@ class TRDXApplication:
             self.camera_manager = CameraManager(max_cameras=4)
             self.pose_processor = PoseProcessor(self.config_manager)
             self.steamvr_driver = SteamVRDriver()
+            
+            # NOTE: Keep PoseProcessor in main thread for stability
             
             # CORRECCIÓN: NO conectar a SteamVR automáticamente
             # if self.steamvr_driver.connect_to_steamvr():
@@ -632,4 +655,13 @@ class TRDXApplication:
             
         # OPTIMIZED: Stop performance monitoring
         performance_monitor.stop_monitoring()
+        
+        # Stop pose processor thread
+        if self.pose_thread:
+            try:
+                self.pose_thread.quit()
+                self.pose_thread.wait(2000)
+            except Exception:
+                pass
+            self.pose_thread = None
         self.logger.info("TRDX Application cleanup complete")

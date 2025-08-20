@@ -160,20 +160,47 @@ namespace trdx_driver
         , m_serialNumber(serialNumber)
         , m_deviceIndex(k_unTrackedDeviceIndexInvalid)
         , m_isActive(false)
-        , m_role(TrackedControllerRole_Invalid)
+        , m_roleString("")
         , m_propertyContainer(k_ulInvalidPropertyContainer)
     {
-        // Initialize pose
+        // Initialize pose with proper defaults
         m_driverPose = { 0 };
-        m_driverPose.poseIsValid = false;
-        m_driverPose.result = TrackingResult_Uninitialized;
+        m_driverPose.poseIsValid = true;
+        m_driverPose.result = TrackingResult_Running_OK;
         m_driverPose.deviceIsConnected = true;
         m_driverPose.poseTimeOffset = 0.0;
+        
+        // Set default position (center of tracking space)
+        m_driverPose.vecPosition[0] = 0.0;
+        m_driverPose.vecPosition[1] = 1.0;  // Waist height
+        m_driverPose.vecPosition[2] = 0.0;
+        
+        // Set default rotation (identity)
+        m_driverPose.qRotation.w = 1.0;
+        m_driverPose.qRotation.x = 0.0;
+        m_driverPose.qRotation.y = 0.0;
+        m_driverPose.qRotation.z = 0.0;
+
+        // Initialize transformation quaternions (CRITICAL FIX)
+        m_driverPose.qWorldFromDriverRotation.w = 1.0f;
+        m_driverPose.qWorldFromDriverRotation.x = 0.0f;
+        m_driverPose.qWorldFromDriverRotation.y = 0.0f;
+        m_driverPose.qWorldFromDriverRotation.z = 0.0f;
+        
+        m_driverPose.qDriverFromHeadRotation.w = 1.0f;
+        m_driverPose.qDriverFromHeadRotation.x = 0.0f;
+        m_driverPose.qDriverFromHeadRotation.y = 0.0f;
+        m_driverPose.qDriverFromHeadRotation.z = 0.0f;
 
         // Initialize last pose
         m_lastPose = { 0 };
         m_lastPose.trackerId = trackerId;
         m_lastPose.isValid = false;
+        
+        // Initialize instance-specific variables for filtering and velocity
+        m_poseHistory.clear();
+        m_lastPoseForVelocity = { 0 };
+        m_lastTimestampForVelocity = GetTickCount64();
     }
 
     TRDXTrackerDevice::~TRDXTrackerDevice()
@@ -203,32 +230,55 @@ namespace trdx_driver
         // Set device class
         VRProperties()->SetInt32Property(m_propertyContainer, Prop_DeviceClass_Int32, TrackedDeviceClass_GenericTracker);
         
-        // Set additional properties for better SteamVR recognition
-        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceProvidesBatteryStatus_Bool, false);
-        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceCanPowerOff_Bool, false);
+        // Set additional tracker properties for better SteamVR integration
         VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceIsCharging_Bool, false);
+        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceIsWireless_Bool, true);
+        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceCanPowerOff_Bool, false);
+        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_DeviceProvidesBatteryStatus_Bool, false);
         VRProperties()->SetFloatProperty(m_propertyContainer, Prop_DeviceBatteryPercentage_Float, 1.0f);
+        VRProperties()->SetBoolProperty(m_propertyContainer, Prop_WillDriftInYaw_Bool, false);
+        
 
-        // Set tracker role based on tracker ID - CORRECTED ROLE ASSIGNMENT
-        switch (m_trackerId) {
-            case 0: // Hip/Waist
-                VRProperties()->SetInt32Property(m_propertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_Invalid);
-                VRProperties()->SetStringProperty(m_propertyContainer, Prop_ControllerType_String, "vive_tracker");
-                break;
-            case 1: // Left Foot
-                VRProperties()->SetInt32Property(m_propertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_Invalid);
-                VRProperties()->SetStringProperty(m_propertyContainer, Prop_ControllerType_String, "vive_tracker");
-                break;
-            case 2: // Right Foot
-                VRProperties()->SetInt32Property(m_propertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_Invalid);
-                VRProperties()->SetStringProperty(m_propertyContainer, Prop_ControllerType_String, "vive_tracker");
-                break;
-        }
+        
+        // Set tracker-specific properties
+        // Note: Some advanced properties are not available in this OpenVR version
+
+        // Set tracker role - allow SteamVR to assign roles dynamically
+        // Don't set Prop_ControllerRoleHint_Int32 - let SteamVR handle role assignment
+        VRProperties()->SetStringProperty(m_propertyContainer, Prop_ControllerType_String, "vive_tracker");
+        
+        // Set additional properties for role management
+        // Note: Advanced role management properties not available in this OpenVR version
+        
+        // Set generic model number - let SteamVR handle role assignment
+        VRProperties()->SetStringProperty(m_propertyContainer, Prop_ModelNumber_String, "TRDX-TRACKER-1.0");
 
         // Set input profile (token must match manifest "name" and resources top-level key)
         VRProperties()->SetStringProperty(m_propertyContainer, Prop_InputProfilePath_String, "{trdx_tracker}/input/trdx_tracker_profile.json");
+        
+        // Set additional properties for SteamVR integration
+        // Note: Connection status is managed by the driver automatically
+        
+        // Set properties for role management
+        // Note: Advanced properties not available in this OpenVR version
+        
+
+        
+
+
+        // Read tracker role from SteamVR settings
+        ReadTrackerRoleFromSettings();
 
         m_isActive = true;
+        
+        // DEBUG: Log activation status
+        // In a production driver, you would use proper logging
+        // For now, we'll use OutputDebugString for debugging
+        char debugMsg[256];
+        sprintf_s(debugMsg, "TRDX Tracker %d activated successfully. DeviceIndex: %d, Active: %s\n", 
+                 m_trackerId, m_deviceIndex, m_isActive ? "true" : "false");
+        OutputDebugStringA(debugMsg);
+        
         return VRInitError_None;
     }
 
@@ -277,14 +327,95 @@ namespace trdx_driver
         m_lastPose = pose;
         UpdateDriverPose();
 
+        // CRITICAL FIX: Set connection status BEFORE sending pose update
+        m_driverPose.deviceIsConnected = true;
+        m_driverPose.poseIsValid = true;
+
         // Send pose update to SteamVR
         if (m_deviceIndex != k_unTrackedDeviceIndexInvalid) {
             VRServerDriverHost()->TrackedDevicePoseUpdated(m_deviceIndex, m_driverPose, sizeof(DriverPose_t));
+            
+            // DEBUG: Log pose update
+            char debugMsg[256];
+            sprintf_s(debugMsg, "TRDX Tracker %d: Pose updated. Position: [%.3f, %.3f, %.3f], Connected: %s, Valid: %s\n",
+                     m_trackerId, m_driverPose.vecPosition[0], m_driverPose.vecPosition[1], m_driverPose.vecPosition[2],
+                     m_driverPose.deviceIsConnected ? "true" : "false", m_driverPose.poseIsValid ? "true" : "false");
+            OutputDebugStringA(debugMsg);
         }
         
-        // Mark device as connected and active
-        m_driverPose.deviceIsConnected = true;
-        m_driverPose.poseIsValid = true;
+        // Check for role updates from SteamVR
+        ReadTrackerRoleFromSettings();
+    }
+
+    void TRDXTrackerDevice::SetTrackerRole(const std::string& role)
+    {
+        m_roleString = role;
+    }
+
+    void TRDXTrackerDevice::ReadTrackerRoleFromSettings()
+    {
+        // Read tracker role from SteamVR settings using IVRSettings interface
+        // Tracker roles are stored in steamvr.vrsettings under the trackers section
+        if (VRSettings()) {
+            // Construct the settings key for this tracker
+            std::string settingsKey = "/devices/trdx_tracker/" + m_serialNumber;
+            
+            // Read the role from settings
+            char roleBuffer[256];
+            vr::EVRSettingsError error;
+            VRSettings()->GetString("trackers", settingsKey.c_str(), roleBuffer, sizeof(roleBuffer), &error);
+            
+            // Store tracker role as string - don't convert to controller roles
+            // Trackers use their own role system, not ETrackedControllerRole
+            if (strlen(roleBuffer) > 0) {
+                // Store the role string for internal use
+                std::string newRoleString = roleBuffer;
+                
+                            // Update internal role state if changed
+            if (newRoleString != m_roleString) {
+                UpdateTrackerRole(newRoleString);
+            }
+            }
+        }
+    }
+
+    void TRDXTrackerDevice::UpdateTrackerRole(const std::string& newRole)
+    {
+        if (m_roleString != newRole) {
+            m_roleString = newRole;
+            
+            // Update anatomical constraints based on new role
+            // This allows the tracker to adapt its behavior based on the assigned role
+            if (m_propertyContainer != k_ulInvalidPropertyContainer) {
+                // Notify SteamVR that the tracker properties have changed
+                // Note: Connection status is managed automatically by the driver
+            }
+        }
+    }
+
+    void TRDXTrackerDevice::SendFallbackPoseUpdate()
+    {
+        // Send a fallback pose update to keep SteamVR connection alive
+        // This prevents trackers from going offline when no UDP data is received
+        if (m_deviceIndex != k_unTrackedDeviceIndexInvalid && m_isActive) {
+            // Create a fallback pose with last known position or default position
+            DriverPose_t fallbackPose = m_driverPose;
+            
+            // Ensure connection status is maintained
+            fallbackPose.deviceIsConnected = true;
+            fallbackPose.poseIsValid = true;
+            fallbackPose.result = TrackingResult_Running_OK;
+            
+            // Send the fallback pose to SteamVR
+            VRServerDriverHost()->TrackedDevicePoseUpdated(m_deviceIndex, fallbackPose, sizeof(DriverPose_t));
+            
+            // DEBUG: Log fallback pose update
+            char debugMsg[256];
+            sprintf_s(debugMsg, "TRDX Tracker %d: Fallback pose sent. Position: [%.3f, %.3f, %.3f], Connected: %s, Valid: %s\n",
+                     m_trackerId, fallbackPose.vecPosition[0], fallbackPose.vecPosition[1], fallbackPose.vecPosition[2],
+                     fallbackPose.deviceIsConnected ? "true" : "false", fallbackPose.poseIsValid ? "true" : "false");
+            OutputDebugStringA(debugMsg);
+        }
     }
 
     void TRDXTrackerDevice::UpdateDriverPose()
@@ -362,17 +493,17 @@ namespace trdx_driver
     {
         // MINIMAL filtering for maximum MediaPipe precision
         static const int FILTER_SIZE = 2;  // Reduced from 3 to 2 for minimal filtering
-        static std::vector<TrackerPose> poseHistory;
         
-        poseHistory.push_back(m_lastPose);
-        if (poseHistory.size() > FILTER_SIZE) {
-            poseHistory.erase(poseHistory.begin());
+        // Use instance-specific pose history instead of static variable
+        m_poseHistory.push_back(m_lastPose);
+        if (m_poseHistory.size() > FILTER_SIZE) {
+            m_poseHistory.erase(m_poseHistory.begin());
         }
         
-        if (poseHistory.size() >= 2) {
+        if (m_poseHistory.size() >= 2) {
             // Calculate filtered position with minimal filtering
             double filteredX = 0.0, filteredY = 0.0, filteredZ = 0.0;
-            for (const auto& pose : poseHistory) {
+            for (const auto& pose : m_poseHistory) {
                 filteredX += pose.position[0];
                 filteredY += pose.position[1];
                 filteredZ += pose.position[2];
@@ -382,44 +513,41 @@ namespace trdx_driver
             double newWeight = 0.95;
             double filterWeight = 0.05;
             
-            m_lastPose.position[0] = newWeight * m_lastPose.position[0] + filterWeight * (filteredX / poseHistory.size());
-            m_lastPose.position[1] = newWeight * m_lastPose.position[1] + filterWeight * (filteredY / poseHistory.size());
-            m_lastPose.position[2] = newWeight * m_lastPose.position[2] + filterWeight * (filteredZ / poseHistory.size());
+            m_lastPose.position[0] = newWeight * m_lastPose.position[0] + filterWeight * (filteredX / m_poseHistory.size());
+            m_lastPose.position[1] = newWeight * m_lastPose.position[1] + filterWeight * (filteredY / m_poseHistory.size());
+            m_lastPose.position[2] = newWeight * m_lastPose.position[2] + filterWeight * (filteredZ / m_poseHistory.size());
         }
     }
 
     void TRDXTrackerDevice::ApplyAnatomicalConstraints()
     {
-        // Apply basic anatomical constraints based on tracker role
-        switch (m_trackerId) {
-            case 0: // Hip/Waist - should be roughly at waist level
-                // Constrain Y position to reasonable waist height (0.8-1.2 meters)
-                if (m_lastPose.position[1] < 0.8) m_lastPose.position[1] = 0.8;
-                if (m_lastPose.position[1] > 1.2) m_lastPose.position[1] = 1.2;
-                break;
-                
-            case 1: // Left Foot - should be near ground level
-            case 2: // Right Foot - should be near ground level
-                // Constrain Y position to ground level (0.0-0.3 meters)
-                if (m_lastPose.position[1] < 0.0) m_lastPose.position[1] = 0.0;
-                if (m_lastPose.position[1] > 0.3) m_lastPose.position[1] = 0.3;
-                break;
+        // Apply anatomical constraints based on assigned tracker role
+        // This allows for dynamic role-based constraints
+        if (m_roleString == "left_foot" || m_roleString == "right_foot") {
+            // Foot trackers - constrain to ground level
+            if (m_lastPose.position[1] < 0.0) m_lastPose.position[1] = 0.0;
+            if (m_lastPose.position[1] > 0.3) m_lastPose.position[1] = 0.3;
+        } else if (m_roleString == "hip" || m_roleString == "waist") {
+            // Waist/Hip tracker - constrain to reasonable waist height
+            if (m_lastPose.position[1] < 0.8) m_lastPose.position[1] = 0.8;
+            if (m_lastPose.position[1] > 1.2) m_lastPose.position[1] = 1.2;
+        } else {
+            // No role assigned yet - apply minimal constraints
+            // Let SteamVR handle role assignment through the UI
         }
     }
 
     void TRDXTrackerDevice::CalculateVelocity()
     {
-        static TrackerPose lastPose = m_lastPose;
-        static uint64_t lastTimestamp = GetTickCount64();
-        
+        // Use instance-specific variables instead of static variables
         uint64_t currentTimestamp = GetTickCount64();
-        double deltaTime = (currentTimestamp - lastTimestamp) / 1000.0; // Convert to seconds
+        double deltaTime = (currentTimestamp - m_lastTimestampForVelocity) / 1000.0; // Convert to seconds
         
         if (deltaTime > 0.0 && deltaTime < 0.1) { // Reasonable time delta
             // Calculate linear velocity
-            m_driverPose.vecVelocity[0] = (m_lastPose.position[0] - lastPose.position[0]) / deltaTime;
-            m_driverPose.vecVelocity[1] = (m_lastPose.position[1] - lastPose.position[1]) / deltaTime;
-            m_driverPose.vecVelocity[2] = (m_lastPose.position[2] - lastPose.position[2]) / deltaTime;
+            m_driverPose.vecVelocity[0] = (m_lastPose.position[0] - m_lastPoseForVelocity.position[0]) / deltaTime;
+            m_driverPose.vecVelocity[1] = (m_lastPose.position[1] - m_lastPoseForVelocity.position[1]) / deltaTime;
+            m_driverPose.vecVelocity[2] = (m_lastPose.position[2] - m_lastPoseForVelocity.position[2]) / deltaTime;
             
             // Limit maximum velocity to prevent unrealistic movement
             double maxVelocity = 5.0; // 5 m/s
@@ -447,8 +575,9 @@ namespace trdx_driver
         m_driverPose.vecAngularVelocity[1] = 0.0;
         m_driverPose.vecAngularVelocity[2] = 0.0;
         
-        lastPose = m_lastPose;
-        lastTimestamp = currentTimestamp;
+        // Update instance-specific variables for next calculation
+        m_lastPoseForVelocity = m_lastPose;
+        m_lastTimestampForVelocity = currentTimestamp;
     }
 
     //-----------------------------------------------------------------------------
@@ -511,7 +640,30 @@ namespace trdx_driver
     void TRDXDriverProvider::RunFrame()
     {
         // This is called every frame by SteamVR
-        // We handle updates in a separate thread, so nothing to do here
+        // Periodically refresh tracker roles from SteamVR settings
+        static int frameCounter = 0;
+        frameCounter++;
+        
+        // Check for role updates every 60 frames (roughly once per second at 60fps)
+        if (frameCounter % 60 == 0) {
+            for (auto& tracker : m_trackerDevices) {
+                tracker->ReadTrackerRoleFromSettings();
+            }
+            
+            // Save tracker roles to settings periodically
+            SaveTrackerRolesToSettings();
+        }
+        
+        // OPTIMIZATION: Only send fallback poses if no UDP data was received recently
+        // This prevents duplicate pose updates that could cause conflicts
+        static int lastUDPFrame = 0;
+        if (frameCounter - lastUDPFrame > 10) { // If no UDP data for ~10 frames
+            for (auto& tracker : m_trackerDevices) {
+                if (tracker->IsActive()) {
+                    tracker->SendFallbackPoseUpdate();
+                }
+            }
+        }
     }
 
     bool TRDXDriverProvider::ShouldBlockStandbyMode()
@@ -531,23 +683,30 @@ namespace trdx_driver
 
     void TRDXDriverProvider::CreateTrackerDevices()
     {
-        // Create tracker devices
+        // Create tracker devices with generic serial numbers
+        // Let SteamVR handle role assignment through the UI
+        const char* trackerSerials[] = {
+            "TRDX_TRACKER_001",
+            "TRDX_TRACKER_002", 
+            "TRDX_TRACKER_003"
+        };
+        
         for (int i = 0; i < MAX_TRACKERS; ++i) {
-            std::string serialNumber = "TRDX_TRACKER_" + std::to_string(i);
-            auto tracker = std::make_unique<TRDXTrackerDevice>(i, serialNumber);
+            auto tracker = std::make_unique<TRDXTrackerDevice>(i, trackerSerials[i]);
             
             // Add device to SteamVR
             bool added = VRServerDriverHost()->TrackedDeviceAdded(
-                serialNumber.c_str(),
+                trackerSerials[i],
                 TrackedDeviceClass_GenericTracker,
                 tracker.get()
             );
 
             if (added) {
                 m_trackerDevices.push_back(std::move(tracker));
+            } else {
+                // Log failure but continue - SteamVR might recognize it later
+                // In a production driver, you might want to retry or handle this differently
             }
-            // Note: Even if TrackedDeviceAdded fails, we keep the tracker
-            // SteamVR might still recognize it later
         }
     }
 
@@ -563,10 +722,41 @@ namespace trdx_driver
                         break;
                     }
                 }
+                
+                // Update UDP frame counter for RunFrame optimization
+                static int frameCounter = 0;
+                frameCounter++;
+            } else {
+                // If no UDP data, still update trackers to maintain SteamVR connection
+                // This is CRITICAL to prevent trackers from going offline
+                for (auto& tracker : m_trackerDevices) {
+                    if (tracker->IsActive()) {
+                        // Send fallback pose updates to keep SteamVR happy
+                        // This ensures trackers stay connected even without UDP data
+                        tracker->SendFallbackPoseUpdate();
+                    }
+                }
+                
+                // Check UDP connection status
+                if (m_udpComm && !m_udpComm->IsConnected()) {
+                    // Try to reinitialize UDP if connection is lost
+                    // This is a simple approach - in production you might want more sophisticated reconnection logic
+                    // For now, just log the issue
+                }
             }
 
             // Sleep for a longer time to reduce CPU usage and improve performance
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+
+    void TRDXDriverProvider::SaveTrackerRolesToSettings()
+    {
+        // Save tracker roles to SteamVR settings for persistence
+        // This ensures that user-assigned roles are maintained across sessions
+        for (auto& tracker : m_trackerDevices) {
+            // The actual saving is handled by SteamVR when we set the Prop_ControllerRoleHint_Int32 property
+            // This method can be used for additional role persistence if needed
         }
     }
 

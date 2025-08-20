@@ -69,7 +69,10 @@ namespace trdx_driver
 
         // TRDX specific methods
         void UpdatePose(const TrackerPose& pose);
-        void SetTrackerRole(vr::ETrackedControllerRole role);
+        void SetTrackerRole(const std::string& role);
+        void ReadTrackerRoleFromSettings();
+        void UpdateTrackerRole(const std::string& newRole);
+        void SendFallbackPoseUpdate();
         int GetTrackerId() const { return m_trackerId; }
         bool IsActive() const { return m_isActive; }
 
@@ -84,13 +87,18 @@ namespace trdx_driver
         vr::TrackedDeviceIndex_t m_deviceIndex;
         vr::DriverPose_t m_driverPose;
         TrackerPose m_lastPose;
-        vr::ETrackedControllerRole m_role;
+        std::string m_roleString;
         
         std::atomic<bool> m_isActive;
         std::mutex m_poseMutex;
         
         // Property container
         vr::PropertyContainerHandle_t m_propertyContainer;
+        
+        // Instance-specific variables for filtering and velocity calculation
+        std::vector<TrackerPose> m_poseHistory;
+        TrackerPose m_lastPoseForVelocity;
+        uint64_t m_lastTimestampForVelocity;
     };
 
     // Main Driver Provider Class
@@ -112,6 +120,7 @@ namespace trdx_driver
     private:
         void CreateTrackerDevices();
         void UpdateTrackersFromUDP();
+        void SaveTrackerRolesToSettings();
         
         std::vector<std::unique_ptr<TRDXTrackerDevice>> m_trackerDevices;
         std::unique_ptr<UDPCommunication> m_udpComm;

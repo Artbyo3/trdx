@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Slot, QThread, Signal
 from PySide6.QtGui import QPixmap, QImage, QAction, QIcon, QFont
+import time
 import numpy as np
 import cv2
 import logging
@@ -52,6 +53,11 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.setup_connections()
         self.load_settings()
+        
+        # Throttled camera rendering state
+        self._latest_frames = {}
+        self._last_ui_frame_time = {}
+        self._ui_frame_interval_ms = 67  # ~15 FPS per camera
         
         # Update timer
         self.update_timer = QTimer()
@@ -662,9 +668,8 @@ class MainWindow(QMainWindow):
     
     @Slot(int, np.ndarray)
     def on_frame_ready(self, camera_id, frame):
-        """Handle new frame from camera"""
-        if camera_id in self.camera_widgets:
-            self.camera_widgets[camera_id].update_frame(frame)
+        """Handle new frame from camera (store only; render on timer)"""
+        self._latest_frames[camera_id] = frame
     
     @Slot(int, object)
     def on_pose_detected(self, camera_id, pose_data):
@@ -782,8 +787,6 @@ class MainWindow(QMainWindow):
                     self.steamvr_driver.add_tracker(role)
                 
                 # Simulate tracking data to activate the tracker
-                import numpy as np
-                import time
                 
                 # Simulate realistic tracking data
                 base_position = np.array([0.0, 0.0, 0.0])
@@ -813,6 +816,15 @@ class MainWindow(QMainWindow):
                 status = self.steamvr_driver.get_tracker_status(tracker_id)
             
             widget.update_status(status)
+
+        # Throttled camera rendering (~15 FPS per camera)
+        now_ms = int(time.time() * 1000)
+        for cam_id, frame in list(self._latest_frames.items()):
+            last_ms = self._last_ui_frame_time.get(cam_id, 0)
+            if now_ms - last_ms >= self._ui_frame_interval_ms:
+                if cam_id in self.camera_widgets:
+                    self.camera_widgets[cam_id].update_frame(frame)
+                    self._last_ui_frame_time[cam_id] = now_ms
     
     @Slot(list)
     def on_tracker_data_ready(self, tracker_list):

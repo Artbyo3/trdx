@@ -171,6 +171,11 @@ def main():
     """Función principal refactorizada - SIMPLIFICADA"""
     # Crear aplicación Qt
     app = QApplication(sys.argv)
+    # Evitar cierre automático si la ventana se cierra inesperadamente
+    try:
+        app.setQuitOnLastWindowClosed(False)
+    except Exception:
+        pass
     app.setApplicationName("TRDX")
     
     # Configurar icono
@@ -221,6 +226,12 @@ def main():
                 
                 # Cerrar splash y mostrar ventana principal
                 QTimer.singleShot(1000, lambda: show_main_window(app_instance))
+
+                # Asegurar limpieza ordenada al salir
+                try:
+                    app.aboutToQuit.connect(app_instance.cleanup)
+                except Exception:
+                    pass
             else:
                 splash.show_error("Failed to initialize application")
                 print("❌ Error de inicialización")

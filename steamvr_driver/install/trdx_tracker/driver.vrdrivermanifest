@@ -7,6 +7,7 @@
   },
   "resource_root": "trdx_tracker",
   "string_table_path": "resources/strings.vrresources",
+  "alwaysActivate": true,
   "windows": {
     "library_path": "bin/win64/driver_trdx_tracker.dll"
   }

@@ -388,7 +388,7 @@ class CameraWidget(QWidget):
         scaled_pixmap = pixmap.scaled(
             self.video_label.size(), 
             Qt.KeepAspectRatio, 
-            Qt.SmoothTransformation
+            Qt.FastTransformation
         )
         
         self.video_label.setPixmap(scaled_pixmap)
@@ -514,7 +514,7 @@ class CameraWidget(QWidget):
             scaled_pixmap = pixmap.scaled(
                 self.video_label.size(), 
                 Qt.KeepAspectRatio, 
-                Qt.SmoothTransformation
+                Qt.FastTransformation
             )
             
             self.video_label.setPixmap(scaled_pixmap)
